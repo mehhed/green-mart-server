@@ -51,26 +51,6 @@ const client = new MongoClient(uri, {
   },
 });
 
-// middle were  for cookie verification ++++++++++++++++++++++++++++++++++++++++++++
-const logger = (req, res, next) => {
-  // console.log("log info", req.method);
-  next();
-};
-const verified = (req, res, next) => {
-  const token = req?.cookies?.token;
-  // console.log("token tok ", token);
-  if (!token) {
-    return res.status(401).send({ message: "unauthorize" });
-  }
-  jwt.verify(token, process.env.ACCESS_TOKEN, (err, decoded) => {
-    if (err) {
-      return res.status(401).send({ message: "unauthorize access" });
-    }
-    req.user = decoded;
-    next();
-  });
-};
-
 // ===================================================================================
 
 //  main function for connect with mongodb
@@ -86,44 +66,6 @@ async function run() {
     const allTransaction = database.collection("allTransaction");
     const allContact = database.collection("allContact");
     const subscriber = database.collection("subscriber");
-
-    // json web token
-    // ==================================================================
-    // app.post("/jwt", async (req, res) => {
-    //   const user = req.body;
-    //   console.log("user for token", user);
-    //   const token = jwt.sign(user, process.env.ACCESS_TOKEN, {
-    //     expiresIn: "1h",
-    //   });
-    //   res
-    //     .cookie("token", token, {
-    //       httpOnly: true,
-    //       secure: process.env.NODE_ENV === "production",
-    //       sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
-    //     })
-    //     .send({
-    //       status: true,
-    //     });
-    // });
-
-    // app.post("/logOut", async (req, res) => {
-    //   const user = req.body;
-    //   res
-    //     .clearCookie("token", {
-    //       maxAge: 0,
-    //       secure: process.env.NODE_ENV === "production" ? true : false,
-    //       sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
-    //     })
-    //     .send({ status: true });
-    // });
-    // app.post("/logout", async (req, res) => {
-    //   const user = req.body;
-    //   console.log("user hitten", user);
-    //   res.clearCookie("token", { maxAge: 0 }).send({ success: true });
-    // });
-    // ======================================================================
-
-    // get top ordered data
 
     app.post("/users", async (req, res) => {
       console.log(req.body);
@@ -521,6 +463,69 @@ async function run() {
     });
     // ==========================================================================
 
+    // ========================   deshbord relaed api ===============================
+    app.get("/userDeshbord", async (req, res) => {
+      const userEmail = req?.query?.email;
+      const totalOrder = await allOrders
+        .find({ BuyerEmail: userEmail })
+        .toArray();
+      const totalCost = totalOrder?.reduce((total, currentItem) => {
+        return total + currentItem.Price * currentItem.quntity;
+      }, 0);
+
+      const totalCartItems = await allCart
+        .find({
+          BuyerEmail: userEmail,
+        })
+        .toArray();
+
+      const sendData = {
+        totalOrders: totalOrder?.length,
+        totalCost,
+        totalCartItem: totalCartItems?.length,
+      };
+      res.send(sendData);
+    });
+    app.get("/adminDeshbord", async (req, res) => {
+      const totalProduct = await allProduct.find().toArray();
+      const totalOrder = await allOrders.find().toArray();
+      const totalEarn = totalOrder?.reduce((total, currentItem) => {
+        return total + currentItem.Price * currentItem.quntity;
+      }, 0);
+
+      const activeOrder = await allOrders
+        .find({ deleveryStatus: "Delevered" })
+        .toArray();
+
+      const totalUser = await allUser.find().toArray();
+
+      // for pichart data
+      const maetOrder = await allOrders
+        .find({ productCategories: "MEAT" })
+        .toArray();
+      const vergetableOrder = await allOrders
+        .find({ productCategories: "VEGETABLES" })
+        .toArray();
+      const fishOrder = await allOrders
+        .find({ productCategories: "FISH" })
+        .toArray();
+      const fruitsOrder = await allOrders
+        .find({ productCategories: "FRUITS" })
+        .toArray();
+      const senderData = {
+        totalProducts: totalProduct?.length,
+        totalOrders: totalOrder?.length,
+        totalEarn,
+        activeOrders: totalOrder?.length - activeOrder?.length,
+        totalUsers: totalUser?.length,
+        maetOrders: maetOrder?.length,
+        vergetableOrders: vergetableOrder?.length,
+        fishOrders: fishOrder?.length,
+        fruitsOrders: fruitsOrder?.length,
+      };
+      res.send(senderData);
+    });
+    // ================================================================================
     console.log(
       "Pinged your deployment. You successfully connected to MongoDB!"
     );
