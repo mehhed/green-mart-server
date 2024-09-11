@@ -265,6 +265,10 @@ async function run() {
     // =====================================================================================
 
     // ====================== banner related api ====================================
+    app.get("/banner", async (req, res) => {
+      const banners = await banner.find().toArray();
+      res.send(banners);
+    });
     app.post("/banner", async (req, res) => {
       console.log("post banner");
       const bannerData = req.body;
